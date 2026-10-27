@@ -112,7 +112,7 @@ app.get('/api/irrigation/history/:areaId', async (req, res) => res.json(database
 app.post('/api/irrigation/log/:areaId', async (req, res) => {
   const area = await findArea(req.params.areaId); if (!area) return res.status(404).json({ message: 'Area not found.' });
   const farmer = databaseReady ? await Farmer.findById(area.farmerId) : memoryFarmers.find((item) => item._id === area.farmerId);
-  const event = { farmerId: area.farmerId, farmerName: farmer?.name, areaId: area._id, fieldName: area.areaName, village: area.village, taluka: area.taluka, district: area.district, crop: area.crop, date: req.body.date || new Date().toISOString().slice(0, 10), time: req.body.time || new Date().toTimeString().slice(0, 5), duration: Number(req.body.duration || 0), waterSource: req.body.waterSource || 'Not specified', notes: req.body.notes || '' };
+  const event = { farmerId: area.farmerId, farmerName: farmer?.name, areaId: area._id, fieldName: area.areaName, village: area.village, taluka: area.taluka, district: area.district, crop: area.crop, date: req.body.date || new Date().toISOString().slice(0, 10), time: req.body.time || new Date().toTimeString().slice(0, 5), duration: Number(req.body.duration || 0), durationUnit: req.body.durationUnit || 'hours', waterSource: req.body.waterSource || 'Not specified', notes: req.body.notes || '' };
   const saved = databaseReady ? await IrrigationEvent.create(event) : { ...event, _id: `irrigation-${Date.now()}` }; if (!databaseReady) { memoryIrrigationEvents.unshift(saved); await saveStorage(); } res.status(201).json(saved);
 });
 
@@ -132,8 +132,8 @@ async function analyzeArea(area) {
   const recommendedDateText = recommendedDate.toISOString().slice(0, 10);
   if (decision.finalDecision === 'IRRIGATE') decision.message = `Irrigation recommended ${timing} at 06:00 for ${currentArea.village}.`;
   else decision.message = `${decision.reason} Schedule review ${timing} (${recommendedDateText}).`;
-  decision.reason += ` Crop standard: ${standard.label}; ${standard.minutesPerAcre} minutes per acre. ${last ? `Last irrigation was ${last.date}${daysSince === 0 ? ' today' : `, ${daysSince} days ago`}.` : 'No previous irrigation record yet.'}`;
-  const schedule = { farmerId: area.farmerId, areaId: area._id, areaName: area.areaName, village: area.village, crop: area.crop, sowingDate: area.sowingDate, date: recommendedDateText, time: decision.finalDecision === 'IRRIGATE' ? '06:00' : 'Review 18:00', duration: decision.finalDecision === 'IRRIGATE' ? Math.max(15, Math.round(area.farmSize * standard.minutesPerAcre)) : 0, mlPrediction: prediction.prediction, confidence: prediction.confidence, finalDecision: decision.finalDecision, reason: decision.reason, status: decision.finalDecision === 'IRRIGATE' ? 'Planned' : 'Monitor', planType: 'recommendation' };
+  decision.reason += ` Crop standard: ${standard.label}; ${standard.hoursPerAcre} hours per acre. ${last ? `Last irrigation was ${last.date}${daysSince === 0 ? ' today' : `, ${daysSince} days ago`}.` : 'No previous irrigation record yet.'}`;
+  const schedule = { farmerId: area.farmerId, areaId: area._id, areaName: area.areaName, village: area.village, crop: area.crop, sowingDate: area.sowingDate, date: recommendedDateText, time: decision.finalDecision === 'IRRIGATE' ? '06:00' : 'Review 18:00', duration: decision.finalDecision === 'IRRIGATE' ? Number((area.farmSize * standard.hoursPerAcre).toFixed(1)) : 0, durationUnit: 'hours', hoursPerAcre: standard.hoursPerAcre, mlPrediction: prediction.prediction, confidence: prediction.confidence, finalDecision: decision.finalDecision, reason: decision.reason, status: decision.finalDecision === 'IRRIGATE' ? 'Planned' : 'Monitor', planType: 'recommendation' };
   await upsertSchedule(schedule);
   await addAlert(area._id, area.areaName, decision); if (!databaseReady) await saveStorage();
   return { area: currentArea, weather, prediction, decision, schedule, lastIrrigation: last || null };
@@ -156,7 +156,7 @@ app.get('/api/irrigation/schedules', async (req, res) => {
     if (!base) continue;
     let nextDate = base.date < today ? addDays(base.date, Math.ceil((new Date(`${today}T12:00:00`) - new Date(`${base.date}T12:00:00`)) / 86400000 / standard.intervalDays) * standard.intervalDays) : base.date;
     while (nextDate <= until) {
-      const planned = nextDate === base.date ? base : { ...base, date: nextDate, time: '06:00', duration: Math.max(15, Math.round(area.farmSize * standard.minutesPerAcre)), finalDecision: 'IRRIGATE', status: 'Planned', planType: 'forecast', reason: `Routine ${standard.label}. This future plan is based on your crop, field size, and latest recommendation.` };
+      const planned = nextDate === base.date ? base : { ...base, date: nextDate, time: '06:00', duration: Number((area.farmSize * standard.hoursPerAcre).toFixed(1)), durationUnit: 'hours', hoursPerAcre: standard.hoursPerAcre, finalDecision: 'IRRIGATE', status: 'Planned', planType: 'forecast', reason: `Routine ${standard.label}. This future plan is based on your crop, field size, and latest recommendation.` };
       plans.push(planned);
       if (nextDate !== base.date) await upsertSchedule(planned);
       nextDate = addDays(nextDate, standard.intervalDays);

@@ -9,10 +9,10 @@ export const demoAreas = [
 export const cropFactors = { Sugarcane: 1.2, Cotton: 1.05, Soybean: 0.9, Onion: 1.0, Wheat: 0.85 };
 
 export const cropStandards = {
-  Sugarcane: { intervalDays: 4, minutesPerAcre: 6, label: 'water every 4 days' },
-  Cotton: { intervalDays: 6, minutesPerAcre: 6, label: 'water every 6 days' },
-  Soybean: { intervalDays: 7, minutesPerAcre: 5, label: 'water every 7 days' },
-  Onion: { intervalDays: 3, minutesPerAcre: 8, label: 'water every 3 days' },
-  Wheat: { intervalDays: 8, minutesPerAcre: 5, label: 'water every 8 days' },
-  default: { intervalDays: 7, minutesPerAcre: 6, label: 'water every 7 days' }
+  Sugarcane: { intervalDays: 4, hoursPerAcre: 6, label: 'water every 4 days' },
+  Cotton: { intervalDays: 6, hoursPerAcre: 6, label: 'water every 6 days' },
+  Soybean: { intervalDays: 7, hoursPerAcre: 6, label: 'water every 7 days' },
+  Onion: { intervalDays: 3, hoursPerAcre: 6, label: 'water every 3 days' },
+  Wheat: { intervalDays: 8, hoursPerAcre: 6, label: 'water every 8 days' },
+  default: { intervalDays: 7, hoursPerAcre: 6, label: 'water every 7 days' }
 };
